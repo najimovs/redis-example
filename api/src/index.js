@@ -1,17 +1,36 @@
-import { createClient } from "redis"
+import fastify from "fastify"
+import redis from "./redis.js"
 
-const redis = await createClient( {
-	url: "redis://localhost:6677"
+//
+
+const PORT = parseInt( process.env.API_PORT ) || 3_000
+
+const app = fastify( { logger: true } )
+
+app.get( "/heavy", async () => {
+
+	const cache = await redis.get( "/heavy" )
+
+	if ( cache ) {
+
+		return cache
+	}
+	else {
+
+		const result = await getData()
+
+		redis.set( "/heavy", JSON.stringify( result ), { EX: 10 } )
+
+		return result
+	}
 } )
 
-await redis.connect()
+app.listen( { port: PORT } )
 
-redis.on( "error", error => console.log( error ) )
+function getData() {
 
-redis.set( "myKey", 20, { EX: 10 } )
+	return new Promise( resolve => {
 
-setInterval( async () => {
-
-	console.log( await redis.get( "myKey" ) )
-
-}, 1_000 )
+		setTimeout( () => resolve( [ Math.random() ] ), 2_000 ) 
+	} )
+}
